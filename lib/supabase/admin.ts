@@ -1,13 +1,36 @@
 import { createClient } from '@supabase/supabase-js';
-import { publicEnv, serverEnv } from '@/lib/config/env';
+import { assertEnv, env } from '@/lib/config/env';
 
-export const supabaseAdmin = createClient(
-  publicEnv.NEXT_PUBLIC_SUPABASE_URL,
-  serverEnv.SUPABASE_SERVICE_ROLE_KEY,
+let cachedClient: ReturnType<typeof createClient> | null = null;
+
+function getClient() {
+  if (cachedClient) return cachedClient;
+
+  assertEnv(
+    ['NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
+    'supabase-admin',
+  );
+
+  cachedClient = createClient(
+    env.NEXT_PUBLIC_SUPABASE_URL!,
+    env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    },
+  );
+
+  return cachedClient;
+}
+
+export const supabaseAdmin = new Proxy(
+  {},
   {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+    get(_target, prop) {
+      const client = getClient() as any;
+      return client[prop];
     },
   },
-);
+) as ReturnType<typeof createClient>;

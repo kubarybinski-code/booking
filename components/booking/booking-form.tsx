@@ -9,6 +9,24 @@ interface BootstrapResponse {
   addons: (AddonOption & { allowedFlightIds: string[] })[];
 }
 
+async function fetchJsonSafe<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
+  const raw = await response.text();
+
+  let payload: any = null;
+  try {
+    payload = raw ? JSON.parse(raw) : {};
+  } catch {
+    throw new Error('Backend is unavailable or returned a non-JSON response.');
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? 'Request failed.');
+  }
+
+  return payload as T;
+}
+
 export function BookingForm() {
   const [locale, setLocale] = useState<SupportedLocale>('en');
   const [flights, setFlights] = useState<FlightOption[]>([]);
@@ -40,33 +58,30 @@ export function BookingForm() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`/api/booking/bootstrap?locale=${locale}`, { signal: controller.signal })
-      .then(async (r) => {
-        if (!r.ok) throw new Error((await r.json()).error ?? 'Failed to load catalog.');
-        return r.json() as Promise<BootstrapResponse>;
-      })
+    setError(null);
+
+    fetchJsonSafe<BootstrapResponse>(`/api/booking/bootstrap?locale=${locale}`, { signal: controller.signal })
       .then((data) => {
         setFlights(data.flights);
         setAddons(data.addons);
         if (!selectedFlightId && data.flights[0]) setSelectedFlightId(data.flights[0].id);
       })
       .catch((e) => setError(e.message));
+
     return () => controller.abort();
   }, [locale]);
 
   useEffect(() => {
     if (!selectedFlightId || !slotDate) return;
     const controller = new AbortController();
-    fetch(`/api/booking/slots?flightId=${selectedFlightId}&date=${slotDate}&people=${peopleCount}`, { signal: controller.signal })
-      .then(async (r) => {
-        if (!r.ok) throw new Error((await r.json()).error ?? 'Failed to load slots.');
-        return r.json();
-      })
+
+    fetchJsonSafe<{ slots: SlotOption[] }>(`/api/booking/slots?flightId=${selectedFlightId}&date=${slotDate}&people=${peopleCount}`, { signal: controller.signal })
       .then((data) => {
         setSlots(data.slots);
         setSelectedSlotId('');
       })
       .catch((e) => setError(e.message));
+
     return () => controller.abort();
   }, [selectedFlightId, slotDate, peopleCount]);
 
@@ -79,32 +94,30 @@ export function BookingForm() {
     setError(null);
     setSuccessReference(null);
 
-    const response = await fetch('/api/booking/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        flightId: selectedFlightId,
-        dailySlotId: selectedSlotId,
-        peopleCount,
-        customerFirstName: firstName,
-        customerLastName: lastName,
-        customerEmail: email,
-        customerPhone: phone,
-        discountCode,
-        addons: Object.entries(selectedAddons)
-          .filter(([, checked]) => checked)
-          .map(([addonId]) => ({ addonId, quantity: 1 })),
-        language: locale,
-      }),
-    });
+    try {
+      const payload = await fetchJsonSafe<{ booking: any }>('/api/booking/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          flightId: selectedFlightId,
+          dailySlotId: selectedSlotId,
+          peopleCount,
+          customerFirstName: firstName,
+          customerLastName: lastName,
+          customerEmail: email,
+          customerPhone: phone,
+          discountCode,
+          addons: Object.entries(selectedAddons)
+            .filter(([, checked]) => checked)
+            .map(([addonId]) => ({ addonId, quantity: 1 })),
+          language: locale,
+        }),
+      });
 
-    const payload = await response.json();
-    if (!response.ok) {
-      setError(payload.error ?? 'Booking failed.');
-      return;
+      setSuccessReference(payload.booking?.booking_reference ?? payload.booking?.bookingReference ?? null);
+    } catch (e) {
+      setError((e as Error).message);
     }
-
-    setSuccessReference(payload.booking?.booking_reference ?? payload.booking?.bookingReference ?? null);
   }
 
   return (

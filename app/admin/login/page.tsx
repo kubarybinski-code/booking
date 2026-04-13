@@ -12,7 +12,13 @@ export default function AdminLoginPage() {
 
   async function login() {
     setError(null);
-    const supabase = createSupabaseBrowserClient();
+    let supabase;
+    try {
+      supabase = createSupabaseBrowserClient();
+    } catch (configError) {
+      setError((configError as Error).message);
+      return;
+    }
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError) {
       setError(signInError.message);

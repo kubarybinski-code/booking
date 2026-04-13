@@ -5,25 +5,21 @@ import { sendBookingLifecycleEmail } from '@/lib/email/booking-email-service';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdminUser();
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    try { await requireAdminUser(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
 
-  const { id } = await params;
-  const { reason } = await request.json();
+    const { id } = await params;
+    const { reason } = await request.json();
 
-  const rpc = await supabaseAdmin.rpc('admin_cancel_booking', {
-    p_booking_id: id,
-    p_reason: reason ?? 'Cancelled by admin',
-  });
+    const rpc = await supabaseAdmin.rpc('admin_cancel_booking', {
+      p_booking_id: id,
+      p_reason: reason ?? 'Cancelled by admin',
+    });
 
-  if (rpc.error) return NextResponse.json({ error: rpc.error.message }, { status: 400 });
+    if (rpc.error) return NextResponse.json({ error: rpc.error.message }, { status: 400 });
 
-  try {
-    await sendBookingLifecycleEmail(id, 'cancellation');
+    try { await sendBookingLifecycleEmail(id, 'cancellation'); } catch (error) { console.error('cancellation_email_failed', error); }
+    return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('cancellation_email_failed', error);
+    return NextResponse.json({ error: (error as Error).message }, { status: 503 });
   }
-  return NextResponse.json({ ok: true });
 }

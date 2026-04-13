@@ -1,25 +1,24 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { publicEnv, serverEnv } from '@/lib/config/env';
+import { env, isSupabasePublicConfigured } from '@/lib/config/env';
 
 function isAdminEmail(email: string | undefined) {
   if (!email) return false;
-  const allowed = serverEnv.ADMIN_EMAILS.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
+  const allowed = env.ADMIN_EMAILS.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
   return allowed.length === 0 ? true : allowed.includes(email.toLowerCase());
 }
 
 export async function middleware(request: NextRequest) {
-  if (!request.nextUrl.pathname.startsWith('/admin')) {
-    return NextResponse.next();
-  }
+  if (!request.nextUrl.pathname.startsWith('/admin')) return NextResponse.next();
+  if (request.nextUrl.pathname.startsWith('/admin/login')) return NextResponse.next();
 
-  if (request.nextUrl.pathname.startsWith('/admin/login')) {
+  if (!isSupabasePublicConfigured()) {
     return NextResponse.next();
   }
 
   const response = NextResponse.next();
 
-  const supabase = createServerClient(publicEnv.NEXT_PUBLIC_SUPABASE_URL, publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+  const supabase = createServerClient(env.NEXT_PUBLIC_SUPABASE_URL!, env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (cookiesToSet) => {
@@ -28,9 +27,7 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user || !isAdminEmail(user.email ?? undefined)) {
     return NextResponse.redirect(new URL('/admin/login', request.url));
@@ -39,6 +36,4 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-export const config = {
-  matcher: ['/admin/:path*'],
-};
+export const config = { matcher: ['/admin/:path*'] };
