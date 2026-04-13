@@ -1,6 +1,16 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
 import { AdminNav } from '@/components/admin/admin-nav';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isLoginPage = pathname === '/admin/login';
+
+  if (isLoginPage) {
+    return <section className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">{children}</section>;
+  }
+
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
       <div className="mb-4">
