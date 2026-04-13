@@ -195,6 +195,8 @@ values
   ('booking.window_days', '60'::jsonb, 'How many days in advance customers can book.'),
   ('booking.default_token_ttl_hours', '48'::jsonb, 'TTL for secure self-service booking tokens.'),
   ('booking.reminder_lead_hours', '24'::jsonb, 'Hours before slot_start when reminder emails should be sent.'),
+  ('booking.cancellation_cutoff_hours', '24'::jsonb, 'Hours before slot start where self-cancel is still allowed.'),
+  ('booking.reschedule_cutoff_hours', '24'::jsonb, 'Hours before slot start where self-reschedule is still allowed.'),
   ('email.sender', '"Paragliding Ops <no-reply@example.com>"'::jsonb, 'Default sender identity for transactional emails.'),
   ('support.contact', '"support@example.com"'::jsonb, 'Support contact shown in customer emails.'),
   ('business.timezone', '"Europe/Vienna"'::jsonb, 'Primary operation timezone for slot generation.')

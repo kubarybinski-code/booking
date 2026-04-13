@@ -22,7 +22,7 @@ Production-oriented booking and operations platform for a tandem paragliding bus
 
 ## Not implemented yet
 - Transactional attachments
-- Customer self-service reschedule/cancel pages (links are prepared in emails)
+- Customer self-service attachments or identity verification beyond secure token links
 
 ## Setup
 ```bash
@@ -49,6 +49,7 @@ psql "$DATABASE_URL" -f db/migrations/001_initial_schema.sql
 psql "$DATABASE_URL" -f db/migrations/002_booking_flow_extensions.sql
 psql "$DATABASE_URL" -f db/migrations/003_admin_panel_extensions.sql
 psql "$DATABASE_URL" -f db/migrations/004_email_extensions.sql
+psql "$DATABASE_URL" -f db/migrations/005_self_service_management.sql
 ```
 
 Apply demo seed:
@@ -67,3 +68,7 @@ psql "$DATABASE_URL" -f db/seeds/seed.sql
 - `/admin/login`
 - `/admin`
 - `POST /api/jobs/send-reminders`
+
+## Self-service management
+- Links from emails open `/booking/manage/{reference}?action=cancel|reschedule&token=...`.
+- Deadline settings: `booking.cancellation_cutoff_hours` and `booking.reschedule_cutoff_hours`.
