@@ -73,6 +73,22 @@ begin
     raise exception 'Target slot is unavailable';
   end if;
 
+  if v_new_slot.slot_start <= now() then
+    raise exception 'Target slot must be in the future';
+  end if;
+
+  if not exists (
+    select 1
+    from slot_template_rules str
+    where str.flight_id = v_booking.flight_id
+      and str.slot_template_id = v_new_slot.slot_template_id
+      and str.season_id = v_new_slot.season_id
+      and str.day_of_week = extract(dow from v_new_slot.slot_date)::smallint
+      and str.is_bookable = true
+  ) then
+    raise exception 'Target slot does not match allowed flight rules';
+  end if;
+
   perform 1 from daily_slots ds
    where ds.shared_capacity_key = v_new_slot.shared_capacity_key and ds.slot_start = v_new_slot.slot_start
    for update;
@@ -83,7 +99,7 @@ begin
   join daily_slots ds on ds.id = b.daily_slot_id
   where ds.shared_capacity_key = v_new_slot.shared_capacity_key
     and ds.slot_start = v_new_slot.slot_start
-    and b.status in ('pending', 'confirmed')
+    and b.status in ('pending', 'confirmed', 'rescheduled')
     and b.id <> p_booking_id;
 
   if v_used + v_booking.people_count > v_new_slot.capacity then

@@ -96,7 +96,7 @@ begin
   join daily_slots ds on ds.id = b.daily_slot_id
   where ds.shared_capacity_key = v_slot.shared_capacity_key
     and ds.slot_start = v_slot.slot_start
-    and b.status in ('pending', 'confirmed');
+    and b.status in ('pending', 'confirmed', 'rescheduled');
 
   if (v_used_seats + p_people_count) > v_slot.capacity then
     raise exception 'Not enough shared capacity for this slot';

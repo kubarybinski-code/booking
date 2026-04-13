@@ -8,12 +8,31 @@ function isAdminEmail(email: string | undefined) {
   return allowed.length === 0 ? true : allowed.includes(email.toLowerCase());
 }
 
+function withEmbedHeaders(request: NextRequest, response: NextResponse) {
+  const path = request.nextUrl.pathname;
+  const isCustomerEmbedPath = path === '/' || path.startsWith('/book') || path.startsWith('/booking/manage');
+
+  if (isCustomerEmbedPath) {
+    const allowedOrigins = (process.env.ALLOWED_IFRAME_ORIGINS ?? '').trim();
+    const ancestors = allowedOrigins.length > 0 ? allowedOrigins : "'self'";
+    response.headers.set('Content-Security-Policy', `frame-ancestors ${ancestors};`);
+  } else if (path.startsWith('/admin')) {
+    response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  }
+
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
-  if (!request.nextUrl.pathname.startsWith('/admin')) return NextResponse.next();
-  if (request.nextUrl.pathname.startsWith('/admin/login')) return NextResponse.next();
+  if (!request.nextUrl.pathname.startsWith('/admin')) {
+    return withEmbedHeaders(request, NextResponse.next());
+  }
+  if (request.nextUrl.pathname.startsWith('/admin/login')) {
+    return withEmbedHeaders(request, NextResponse.next());
+  }
 
   if (!isSupabasePublicConfigured()) {
-    return NextResponse.next();
+    return withEmbedHeaders(request, NextResponse.next());
   }
 
   const response = NextResponse.next();
@@ -30,10 +49,10 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user || !isAdminEmail(user.email ?? undefined)) {
-    return NextResponse.redirect(new URL('/admin/login', request.url));
+    return withEmbedHeaders(request, NextResponse.redirect(new URL('/admin/login', request.url)));
   }
 
-  return response;
+  return withEmbedHeaders(request, response);
 }
 
-export const config = { matcher: ['/admin/:path*'] };
+export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };

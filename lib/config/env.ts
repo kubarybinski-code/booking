@@ -6,6 +6,7 @@ export const env = {
   APP_BASE_URL: process.env.APP_BASE_URL,
   ADMIN_EMAILS: process.env.ADMIN_EMAILS ?? '',
   CRON_SECRET: process.env.CRON_SECRET ?? '',
+  ALLOWED_IFRAME_ORIGINS: process.env.ALLOWED_IFRAME_ORIGINS ?? '',
 };
 
 export const publicEnv = {
@@ -19,6 +20,7 @@ export const serverEnv = {
   APP_BASE_URL: env.APP_BASE_URL,
   ADMIN_EMAILS: env.ADMIN_EMAILS,
   CRON_SECRET: env.CRON_SECRET,
+  ALLOWED_IFRAME_ORIGINS: env.ALLOWED_IFRAME_ORIGINS,
 };
 
 export function getMissingEnv(names: Array<keyof typeof env>) {
