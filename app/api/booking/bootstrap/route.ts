@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const locale = resolveLocale(searchParams.get('locale'));
 
-    const [flightsRes, addonsRes] = await Promise.all([
+    const [flightsRes, addonsRes, publicRulesRes] = await Promise.all([
       supabaseAdmin
         .from('flights')
         .select('id, slug, base_price_cents, min_people, max_people, flight_translations!inner(name, locale)')
@@ -19,10 +19,14 @@ export async function GET(request: Request) {
         .select('id, code, price_cents, pricing_scope, addon_translations!inner(name, description, locale), flight_addons!inner(flight_id)')
         .eq('is_active', true)
         .eq('addon_translations.locale', locale),
+      supabaseAdmin
+        .from('discount_rule_configs')
+        .select('rule_type, applicable_flight_ids, people_discount_map')
+        .eq('is_active', true),
     ]);
 
-    if (flightsRes.error || addonsRes.error) {
-      return NextResponse.json({ error: flightsRes.error?.message ?? addonsRes.error?.message }, { status: 500 });
+    if (flightsRes.error || addonsRes.error || publicRulesRes.error) {
+      return NextResponse.json({ error: flightsRes.error?.message ?? addonsRes.error?.message ?? publicRulesRes.error?.message }, { status: 500 });
     }
 
     const flights = (flightsRes.data ?? []).map((f) => ({
@@ -44,7 +48,13 @@ export async function GET(request: Request) {
       allowedFlightIds: a.flight_addons.map((fa) => fa.flight_id),
     }));
 
-    return NextResponse.json({ flights, addons });
+    const publicDiscountRules = (publicRulesRes.data ?? []).map((r) => ({
+      ruleType: r.rule_type,
+      applicableFlightIds: r.applicable_flight_ids ?? [],
+      peopleDiscountMap: r.people_discount_map ?? {},
+    }));
+
+    return NextResponse.json({ flights, addons, publicDiscountRules });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 503 });
   }

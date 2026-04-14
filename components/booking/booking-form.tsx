@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { bookingDictionary, resolveLocale, SUPPORTED_LOCALES } from '@/lib/i18n/booking-dictionary';
-import type { AddonOption, FlightOption, SlotOption, SupportedLocale } from '@/types/booking';
+import type { AddonOption, AutomaticPublicDiscountRule, FlightOption, SlotOption, SupportedLocale } from '@/types/booking';
 
 interface BootstrapResponse {
   flights: FlightOption[];
   addons: (AddonOption & { allowedFlightIds: string[] })[];
+  publicDiscountRules: AutomaticPublicDiscountRule[];
 }
 
 async function fetchJsonSafe<T>(url: string, init?: RequestInit): Promise<T> {
@@ -32,6 +33,7 @@ export function BookingForm() {
   const [flights, setFlights] = useState<FlightOption[]>([]);
   const [addons, setAddons] = useState<(AddonOption & { allowedFlightIds: string[] })[]>([]);
   const [slots, setSlots] = useState<SlotOption[]>([]);
+  const [publicDiscountRules, setPublicDiscountRules] = useState<AutomaticPublicDiscountRule[]>([]);
   const [slotUnavailableReason, setSlotUnavailableReason] = useState<string | null>(null);
   const [selectedFlightId, setSelectedFlightId] = useState('');
   const [peopleCount, setPeopleCount] = useState(1);
@@ -65,6 +67,7 @@ export function BookingForm() {
       .then((data) => {
         setFlights(data.flights);
         setAddons(data.addons);
+        setPublicDiscountRules(data.publicDiscountRules ?? []);
         if (!selectedFlightId && data.flights[0]) setSelectedFlightId(data.flights[0].id);
       })
       .catch((e) => setError(e.message));
@@ -91,6 +94,21 @@ export function BookingForm() {
     () => addons.filter((addon) => addon.allowedFlightIds.includes(selectedFlightId)),
     [addons, selectedFlightId],
   );
+
+  const hasEligibleAutomaticPublicDiscount = useMemo(() => {
+    return publicDiscountRules.some((rule) => {
+      if (rule.applicableFlightIds.length > 0 && !rule.applicableFlightIds.includes(selectedFlightId)) return false;
+      return Object.entries(rule.peopleDiscountMap ?? {}).some(([minPeopleRaw, amountRaw]) => {
+        const minPeople = Number(minPeopleRaw);
+        const amount = Number(amountRaw);
+        return Number.isFinite(minPeople) && Number.isFinite(amount) && amount > 0 && peopleCount >= minPeople;
+      });
+    });
+  }, [publicDiscountRules, selectedFlightId, peopleCount]);
+
+  const nonStackingMessage = discountCode.trim() && hasEligibleAutomaticPublicDiscount
+    ? 'Public discounts cannot be combined. Remove the promo code to use the automatic discount.'
+    : null;
 
   async function submitBooking() {
     setError(null);
@@ -183,6 +201,7 @@ export function BookingForm() {
 
         <label className="block text-sm font-medium">{t.discount}
           <input className="mt-1 w-full rounded border p-2" value={discountCode} onChange={(e) => setDiscountCode(e.target.value)} />
+          {nonStackingMessage && <p className="mt-1 text-xs text-amber-700">{nonStackingMessage}</p>}
         </label>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

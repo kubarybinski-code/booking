@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { validateBookingPayload } from '@/lib/booking/validators';
 import { sendBookingLifecycleEmail } from '@/lib/email/booking-email-service';
+import { assertPublicDiscountNonStacking } from '@/lib/booking/public-discount';
 import type { BookingRequestPayload } from '@/types/booking';
 
 export async function POST(request: Request) {
@@ -10,6 +11,16 @@ export async function POST(request: Request) {
 
     try {
       validateBookingPayload(payload);
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+    }
+
+    try {
+      await assertPublicDiscountNonStacking({
+        flightId: payload.flightId,
+        peopleCount: payload.peopleCount,
+        discountCode: payload.discountCode,
+      });
     } catch (error) {
       return NextResponse.json({ error: (error as Error).message }, { status: 400 });
     }

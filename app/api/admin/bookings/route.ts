@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdminUser } from '@/lib/auth/admin';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { assertPublicDiscountNonStacking } from '@/lib/booking/public-discount';
 
 export async function GET(request: Request) {
   try {
@@ -34,6 +35,16 @@ export async function POST(request: Request) {
   try {
     try { await requireAdminUser(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
     const payload = await request.json();
+
+    try {
+      await assertPublicDiscountNonStacking({
+        flightId: payload.flightId,
+        peopleCount: payload.peopleCount,
+        discountCode: payload.discountCode,
+      });
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+    }
 
     const rpc = await supabaseAdmin.rpc('create_booking_safe', {
       p_flight_id: payload.flightId,

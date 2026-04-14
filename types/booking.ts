@@ -18,6 +18,13 @@ export interface AddonOption {
   pricingScope: 'per_booking' | 'per_person';
 }
 
+
+export interface AutomaticPublicDiscountRule {
+  ruleType: string;
+  applicableFlightIds: string[];
+  peopleDiscountMap: Record<string, number>;
+}
+
 export interface SlotOption {
   id: string;
   slotStartIso: string;

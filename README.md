@@ -47,6 +47,7 @@ psql "$DATABASE_URL" -f db/migrations/004_email_extensions.sql
 psql "$DATABASE_URL" -f db/migrations/005_self_service_management.sql
 psql "$DATABASE_URL" -f db/migrations/006_admin_pricing_and_availability.sql
 psql "$DATABASE_URL" -f db/migrations/007_enhance_booking_pricing_logic.sql
+psql "$DATABASE_URL" -f db/migrations/008_discount_non_stacking_rule.sql
 ```
 
 Seed demo data:

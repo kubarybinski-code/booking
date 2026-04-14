@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdminUser } from '@/lib/auth/admin';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { sendBookingLifecycleEmail } from '@/lib/email/booking-email-service';
+import { assertPublicDiscountNonStacking } from '@/lib/booking/public-discount';
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -32,16 +33,30 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { data: beforeBooking } = await supabaseAdmin.from('bookings').select('daily_slot_id, flight_id').eq('id', id).single();
 
+    const flightId = payload.flightId ?? payload.flight_id;
+    const peopleCount = payload.peopleCount ?? payload.people_count;
+    const discountCode = payload.discountCode ?? payload.discount_code ?? null;
+
+    try {
+      await assertPublicDiscountNonStacking({
+        flightId,
+        peopleCount,
+        discountCode,
+      });
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+    }
+
     const rpc = await supabaseAdmin.rpc('admin_update_booking', {
       p_booking_id: id,
-      p_flight_id: payload.flightId ?? payload.flight_id,
+      p_flight_id: flightId,
       p_daily_slot_id: payload.dailySlotId ?? payload.daily_slot_id,
-      p_people_count: payload.peopleCount ?? payload.people_count,
+      p_people_count: peopleCount,
       p_customer_first_name: payload.customerFirstName ?? payload.customer_first_name,
       p_customer_last_name: payload.customerLastName ?? payload.customer_last_name,
       p_customer_email: payload.customerEmail ?? payload.customer_email,
       p_customer_phone: payload.customerPhone ?? payload.customer_phone ?? null,
-      p_discount_code: payload.discountCode ?? payload.discount_code ?? null,
+      p_discount_code: discountCode,
       p_addons: payload.addons ?? payload.booking_addons ?? [],
       p_actor: 'admin',
     });

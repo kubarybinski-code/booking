@@ -14,6 +14,7 @@ console.log('  psql "$DATABASE_URL" -f db/migrations/004_email_extensions.sql');
 console.log('  psql "$DATABASE_URL" -f db/migrations/005_self_service_management.sql');
 console.log('  psql "$DATABASE_URL" -f db/migrations/006_admin_pricing_and_availability.sql');
 console.log('  psql "$DATABASE_URL" -f db/migrations/007_enhance_booking_pricing_logic.sql');
+console.log('  psql "$DATABASE_URL" -f db/migrations/008_discount_non_stacking_rule.sql');
 console.log('  psql "$DATABASE_URL" -f db/seeds/seed.sql');
 console.log('\nPreview (first 400 chars):\n');
 console.log(sql.slice(0, 400));
