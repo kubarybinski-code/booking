@@ -31,6 +31,8 @@ export async function PATCH(request: Request) {
       is_active: payload.isActive,
       slug: payload.slug,
       image_url: payload.imageUrl ?? null,
+      booking_start_date: payload.bookingStartDate ?? null,
+      booking_end_date: payload.bookingEndDate ?? null,
     }).eq('id', payload.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
@@ -43,6 +45,36 @@ export async function PATCH(request: Request) {
     }
 
     return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 503 });
+  }
+}
+
+
+export async function POST(request: Request) {
+  try {
+    try { await requireAdminUser(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
+    const payload = await request.json();
+    const insert = await supabaseAdmin.from('flights').insert({
+      slug: payload.slug,
+      base_price_cents: payload.basePriceCents ?? 0,
+      min_people: payload.minPeople ?? 1,
+      max_people: payload.maxPeople ?? 3,
+      is_active: payload.isActive ?? true,
+      booking_start_date: payload.bookingStartDate ?? null,
+      booking_end_date: payload.bookingEndDate ?? null,
+      image_url: payload.imageUrl ?? null,
+    }).select('id').single();
+    if (insert.error) return NextResponse.json({ error: insert.error.message }, { status: 400 });
+
+    await supabaseAdmin.from('flight_translations').upsert({
+      flight_id: insert.data.id,
+      locale: 'en',
+      name: payload.name ?? payload.slug,
+      description: payload.description ?? null,
+    }, { onConflict: 'flight_id,locale' });
+
+    return NextResponse.json({ id: insert.data.id });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 503 });
   }

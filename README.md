@@ -45,6 +45,8 @@ psql "$DATABASE_URL" -f db/migrations/002_booking_flow_extensions.sql
 psql "$DATABASE_URL" -f db/migrations/003_admin_panel_extensions.sql
 psql "$DATABASE_URL" -f db/migrations/004_email_extensions.sql
 psql "$DATABASE_URL" -f db/migrations/005_self_service_management.sql
+psql "$DATABASE_URL" -f db/migrations/006_admin_pricing_and_availability.sql
+psql "$DATABASE_URL" -f db/migrations/007_enhance_booking_pricing_logic.sql
 ```
 
 Seed demo data:
@@ -156,3 +158,12 @@ Customer routes (`/`, `/book`, `/booking/manage/*`) are iframe-ready via CSP `fr
 - [ ] Cutoff rules block late cancel/reschedule with polite message
 - [ ] Valid cancel updates booking status and history
 - [ ] Valid reschedule updates existing booking (no new record) and history
+
+
+## Admin CRUD coverage
+- Flights: create/edit/enable-disable including booking date range fields and seasonal toggles.
+- Add-ons: create/edit/enable-disable with pricing mode and flight assignments.
+- Discount codes: create/edit rules including `family_code_rule`, people-based maps, and manual verification flags.
+- Slot templates/rules: create/edit templates and season-flight-day rules.
+- Bookings: filter, edit, cancel, and manual create.
+- Daily slots/settings: operational updates with persistence.

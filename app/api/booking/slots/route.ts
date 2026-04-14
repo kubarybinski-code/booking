@@ -13,6 +13,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid query parameters.' }, { status: 400 });
     }
 
+    const { data: flight } = await supabaseAdmin
+      .from('flights')
+      .select('booking_start_date, booking_end_date, is_active')
+      .eq('id', flightId)
+      .maybeSingle();
+
+    if (!flight || !flight.is_active) {
+      return NextResponse.json({ slots: [], unavailableReason: 'Selected flight is currently unavailable.' });
+    }
+
+    if (
+      flight.booking_start_date
+      && flight.booking_end_date
+      && (date < flight.booking_start_date || date > flight.booking_end_date)
+    ) {
+      return NextResponse.json({ slots: [], unavailableReason: `Flight is bookable only between ${flight.booking_start_date} and ${flight.booking_end_date}.` });
+    }
+
     const slotsRes = await supabaseAdmin
       .from('daily_slots')
       .select('id, slot_start, slot_end, capacity, shared_capacity_key, state, is_bookable, season_id, slot_template_id')
@@ -35,7 +53,7 @@ export async function GET(request: Request) {
     const usageRes = await supabaseAdmin
       .from('bookings')
       .select('people_count, status, daily_slots!inner(shared_capacity_key, slot_start)')
-      .in('status', ['pending', 'confirmed'])
+      .in('status', ['pending', 'confirmed', 'rescheduled'])
       .in('daily_slots.shared_capacity_key', keys)
       .in('daily_slots.slot_start', starts);
 

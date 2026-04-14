@@ -28,3 +28,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: (error as Error).message }, { status: 503 });
   }
 }
+
+
+export async function POST(request: Request) {
+  try {
+    try { await requireAdminUser(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
+    const payload = await request.json();
+
+    const rpc = await supabaseAdmin.rpc('create_booking_safe', {
+      p_flight_id: payload.flightId,
+      p_daily_slot_id: payload.dailySlotId,
+      p_people_count: payload.peopleCount,
+      p_customer_first_name: payload.customerFirstName,
+      p_customer_last_name: payload.customerLastName,
+      p_customer_email: payload.customerEmail,
+      p_customer_phone: payload.customerPhone ?? null,
+      p_notes: payload.notes ?? 'Created manually by admin',
+      p_discount_code: payload.discountCode ?? null,
+      p_addons: payload.addons ?? [],
+    });
+
+    if (rpc.error) return NextResponse.json({ error: rpc.error.message }, { status: 400 });
+    return NextResponse.json({ booking: rpc.data?.[0] ?? null });
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 503 });
+  }
+}

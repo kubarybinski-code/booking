@@ -32,6 +32,7 @@ export function BookingForm() {
   const [flights, setFlights] = useState<FlightOption[]>([]);
   const [addons, setAddons] = useState<(AddonOption & { allowedFlightIds: string[] })[]>([]);
   const [slots, setSlots] = useState<SlotOption[]>([]);
+  const [slotUnavailableReason, setSlotUnavailableReason] = useState<string | null>(null);
   const [selectedFlightId, setSelectedFlightId] = useState('');
   const [peopleCount, setPeopleCount] = useState(1);
   const [slotDate, setSlotDate] = useState(new Date().toISOString().slice(0, 10));
@@ -75,9 +76,10 @@ export function BookingForm() {
     if (!selectedFlightId || !slotDate) return;
     const controller = new AbortController();
 
-    fetchJsonSafe<{ slots: SlotOption[] }>(`/api/booking/slots?flightId=${selectedFlightId}&date=${slotDate}&people=${peopleCount}`, { signal: controller.signal })
+    fetchJsonSafe<{ slots: SlotOption[]; unavailableReason?: string }>(`/api/booking/slots?flightId=${selectedFlightId}&date=${slotDate}&people=${peopleCount}`, { signal: controller.signal })
       .then((data) => {
         setSlots(data.slots);
+        setSlotUnavailableReason(data.unavailableReason ?? null);
         setSelectedSlotId('');
       })
       .catch((e) => setError(e.message));
@@ -160,7 +162,7 @@ export function BookingForm() {
               </option>
             ))}
           </select>
-          {!slots.length && <p className="mt-1 text-xs text-slate-500">{t.noSlots}</p>}
+          {!slots.length && <p className="mt-1 text-xs text-slate-500">{slotUnavailableReason ?? t.noSlots}</p>}
         </label>
 
         <div>

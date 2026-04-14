@@ -1,14 +1,16 @@
 -- Demo flights
-insert into flights (slug, base_price_cents, min_people, max_people)
+insert into flights (slug, base_price_cents, min_people, max_people, booking_start_date, booking_end_date)
 values
-  ('skyline', 12900, 1, 3),
-  ('extended', 16900, 1, 3),
-  ('glory', 21900, 1, 2),
-  ('custom-air-adventure', 29900, 1, 3)
+  ('skyline', 12900, 1, 3, '2026-05-15', '2026-11-01'),
+  ('extended', 16900, 1, 3, '2026-05-15', '2026-11-01'),
+  ('glory', 21900, 1, 2, '2026-05-15', '2026-11-01'),
+  ('custom-air-adventure', 29900, 1, 3, '2026-05-15', '2026-11-01')
 on conflict (slug) do update set
   base_price_cents = excluded.base_price_cents,
   min_people = excluded.min_people,
   max_people = excluded.max_people,
+  booking_start_date = excluded.booking_start_date,
+  booking_end_date = excluded.booking_end_date,
   is_active = true;
 
 insert into flight_translations (flight_id, locale, name, short_description, description)
@@ -64,19 +66,25 @@ insert into discount_codes (
   discount_type,
   discount_value,
   applies_to_scope,
+  rule_type,
+  people_discount_map,
+  requires_manual_verification,
   flight_id,
   max_uses,
   valid_from,
   valid_until
 )
 values
-  ('KIDS', 'fixed_amount', 1200, 'per_person', null, 300, now(), now() + interval '1 year'),
-  ('FAMILY', 'fixed_amount', 2000, 'per_booking', null, 200, now(), now() + interval '1 year'),
-  ('GROUP', 'fixed_amount', 1500, 'per_person', (select id from flights where slug = 'skyline'), 250, now(), now() + interval '1 year')
+  ('KIDS', 'fixed_amount', 1200, 'per_person', 'standard_code', '{}'::jsonb, false, null, 300, now(), now() + interval '1 year'),
+  ('SKY-EXPLORER', 'fixed_amount', 0, 'per_booking', 'family_code_rule', '{"1":1000,"2":2000,"3":3000}'::jsonb, true, null, 200, now(), now() + interval '1 year'),
+  ('GROUP', 'fixed_amount', 1500, 'per_person', 'standard_code', '{}'::jsonb, false, (select id from flights where slug = 'skyline'), 250, now(), now() + interval '1 year')
 on conflict (code) do update set
   discount_type = excluded.discount_type,
   discount_value = excluded.discount_value,
   applies_to_scope = excluded.applies_to_scope,
+  rule_type = excluded.rule_type,
+  people_discount_map = excluded.people_discount_map,
+  requires_manual_verification = excluded.requires_manual_verification,
   flight_id = excluded.flight_id,
   max_uses = excluded.max_uses,
   valid_from = excluded.valid_from,
@@ -199,6 +207,9 @@ values
   ('booking.reschedule_cutoff_hours', '24'::jsonb, 'Hours before slot start where self-reschedule is still allowed.'),
   ('email.sender', '"Paragliding Ops <no-reply@example.com>"'::jsonb, 'Default sender identity for transactional emails.'),
   ('support.contact', '"support@example.com"'::jsonb, 'Support contact shown in customer emails.'),
+  ('company.name', '"Sky Mania"'::jsonb, 'Company display name for admin and templates.'),
+  ('support.email', '"support@example.com"'::jsonb, 'Support email address.'),
+  ('support.phone', '"+43-000-0000"'::jsonb, 'Support phone number.'),
   ('business.timezone', '"Europe/Vienna"'::jsonb, 'Primary operation timezone for slot generation.')
 on conflict (key) do update set
   value = excluded.value,
@@ -218,3 +229,10 @@ select s.id, f.id, true
 from seasons s
 cross join flights f
 on conflict (season_id, flight_id) do update set is_active = excluded.is_active;
+
+
+insert into discount_rule_configs (rule_type, name, is_active, people_discount_map, applicable_flight_ids)
+values
+  ('group_discount', 'Fly Together', true, '{"3":1000}'::jsonb, '{}'),
+  ('premium_bonus', 'Premium Flight Bonus', true, '{"2":1000,"3":1500}'::jsonb, (select array_agg(id) from flights where slug in ('extended','glory')))
+on conflict do nothing;
